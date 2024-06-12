@@ -1,0 +1,40 @@
+---
+ - name: check for tpm
+   ansible.builtin.stat:
+     path: /dev/tpm0
+   register: tpm_path
+
+
+ - name: check for context
+   ansible.builtin.command: tpm2_nvread -C o -s 32 1
+   when: tpm_path.stat.exists
+   ignore_errors: true
+   register: tpm_context
+
+ - name: create tpm context
+   ansible.builtin.command: tpm2_nvdefine 1 -C o -s 32 -a "ownerread|ownerwrite"
+   when: 
+     - tpm_path.stat.exists
+     - tpm_context.rc != 0
+ 
+
+ - name: write auth jwt 
+   ansible.builtin.shell: echo {{ cloud_init_jwt }} | tpm2_nvwrite -Q 1 -C o -i-
+   when:
+     - tpm_path.stat.exists
+   no_log: true
+
+ - name: instantiate /var/run/cloud-init-jwt
+   ansible.builtin.file:
+     path: /var/run/cloud-init-jwt
+     state: touch
+     mode: '0600'
+     owner: root
+     group: root
+   when: tpm_path.stat.exists == false
+
+ - name: write secret to /var/run
+   ansible.builtin.shell: echo {{ cloud_init_jwt }} > /var/run/cloud-init-jwt
+   when: tpm_path.stat.exists == false
+   no_log: true
+
