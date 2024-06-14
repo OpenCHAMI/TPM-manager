@@ -1,0 +1,6 @@
+---
+plugin: smd_inventory
+smd_server: smd:27779
+#filter_by: "{'type': 'Node', 'role': 'Compute', 'state': 'Ready'}"
+#access_token_envvar: ACCESS_TOKEN
+nid_length: 3

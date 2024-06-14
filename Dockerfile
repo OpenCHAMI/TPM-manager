@@ -13,6 +13,10 @@ RUN dnf install -y epel-release \
 # Copy the smd inventory plugin into Ansible's system-level plugins directory
 COPY ansible-smd-inventory/smd_inventory.py /usr/share/ansible/plugins/inventory/
 
+# Grab all the Ansible things
+COPY ansible/ ansible/
+WORKDIR ansible
+
 # TODO: Access token?
 
 # TODO: ENTRYPOINT should be some sort of daemon process?
