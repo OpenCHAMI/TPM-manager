@@ -1,0 +1,3 @@
+[submodule "ansible-smd-inventory"]
+	path = ansible-smd-inventory
+	url = https://github.com/OpenCHAMI/ansible-smd-inventory.git
