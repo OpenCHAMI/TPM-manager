@@ -24,17 +24,13 @@
      - tpm_path.stat.exists
    no_log: true
 
- - name: instantiate /var/run/cloud-init-jwt
-   ansible.builtin.file:
-     path: /var/run/cloud-init-jwt
-     state: touch
+ - name: write secret to /var/run/cloud-init-jwt
+   ansible.builtin.template:
+     src: jwt.j2
+     dest: /var/run/cloud-init-jwt
      mode: '0600'
      owner: root
      group: root
-   when: tpm_path.stat.exists == false
-
- - name: write secret to /var/run
-   ansible.builtin.shell: echo {{ cloud_init_jwt }} > /var/run/cloud-init-jwt
    when: tpm_path.stat.exists == false
    no_log: true
 
