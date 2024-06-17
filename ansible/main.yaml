@@ -1,0 +1,22 @@
+---
+- name: get jwt for cloud-init
+  hosts: localhost
+  tasks:
+    - name: get jwt from opaal
+      ansible.builtin.uri:
+        url: http://opaal:3333/token
+        method: GET
+        return_content: true
+      register: opaal_response
+      no_log: true
+    - name: extract token for deployment
+      ansible.builtin.set_fact:
+        cloud_init_jwt: "{{ (opaal_response.content | from_json).access_token }}"
+      no_log: true
+
+- name: securely push cloud-init jwt to nodes
+  hosts: all
+  roles:
+    - role: tpm_secrets
+      vars:
+        cloud_init_jwt: "{{ hostvars.localhost.cloud_init_jwt }}"
