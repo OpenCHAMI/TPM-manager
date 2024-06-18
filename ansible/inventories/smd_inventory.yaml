@@ -1,6 +1,6 @@
 ---
 plugin: smd_inventory
-smd_server: http://smd:27779
+#smd_server: read from environment
 #filter_by: "{'type': 'Node', 'role': 'Compute', 'state': 'Ready'}"
 #access_token_envvar: ACCESS_TOKEN
 nid_length: 3

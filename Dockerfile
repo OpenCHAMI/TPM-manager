@@ -6,6 +6,8 @@ LABEL org.opencontainers.image.authors="Lucas Ritzdorf <lritzdorf@lanl.gov>"
 # Define API base URLs
 ## OPAAL server for auth token provisioning
 ENV OPAAL_URL=http://opaal:3333
+## SMD server for node inventory retrieval
+ENV HSM_URL=http://smd:27779
 
 # Get Ansible-related packages, and clean up after ourselves
 # NOTE: If these don't happen in the same command, they become separate layers
