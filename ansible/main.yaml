@@ -4,7 +4,7 @@
   tasks:
     - name: get jwt from opaal
       ansible.builtin.uri:
-        url: http://opaal:3333/token
+        url: "{{ lookup('ansible.builtin.env', 'OPAAL_URL') }}/token"
         method: GET
         return_content: true
       register: opaal_response
