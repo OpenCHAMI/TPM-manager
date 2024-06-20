@@ -56,9 +56,17 @@ func listenPosts(nodes *SafeUpdatingSlice, port int) {
 	// Add our node to the slice, and send a length update to anyone watching
 	nodes.Lock()
 	// FIXME: For now, we use a list of multiple nodes, so that we can test with more than just one Ansible target
-	exampleNodes := []string{"nid001", "nid002"}
-	nodes.slice = append(nodes.slice, exampleNodes...)
+	nodes.slice = append(nodes.slice, []string{"nid001", "nid002"}...)
 	numNodes := len(nodes.slice)
+	nodes.Unlock()
+	log.Debug().Msgf("Pushing update: %d nodes", numNodes)
+	nodes.length <- numNodes
+
+	// FIXME: Add some more nodes, as a test
+	time.Sleep(5 * time.Second)
+	nodes.Lock()
+	nodes.slice = append(nodes.slice, []string{"nid003", "nid004", "nid005", "nid006", "nid007"}...)
+	numNodes = len(nodes.slice)
 	nodes.Unlock()
 	log.Debug().Msgf("Pushing update: %d nodes", numNodes)
 	nodes.length <- numNodes
