@@ -1,34 +1,40 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type SafeUpdatingSlice struct {
 	sync.Mutex
-	slice []string
-	len   chan int
+	slice  []string
+	length chan int
 }
 
 func main() {
 	port := 27730
 	batchSize := 100
-	nodes := SafeUpdatingSlice{}
+	nodes := SafeUpdatingSlice{length: make(chan int)}
 
-	fmt.Printf("Awaiting POST requests on port %d...\n", port)
+	// Initialize logging
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	log.Info().Msgf("Awaiting POST requests on port %d...", port)
 	go listenPosts(&nodes, port)
 	go watchNodes(&nodes, 5*time.Minute, batchSize)
 
 	// Exit cleanly when an OS signal is received
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Printf("\nCaught OS signal %v, exiting...\n", <-sigs)
+	log.Info().Msgf("Caught OS signal %v, exiting...", <-sigs)
 }
 
 func listenPosts(nodes *SafeUpdatingSlice, port int) {
@@ -42,7 +48,8 @@ func listenPosts(nodes *SafeUpdatingSlice, port int) {
 	nodes.slice = append(nodes.slice, exampleNodes...)
 	numNodes := len(nodes.slice)
 	nodes.Unlock()
-	nodes.len <- numNodes
+	nodes.length <- numNodes
+	log.Debug().Msgf("Pushed update: %d nodes", numNodes)
 }
 
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int) {
@@ -53,27 +60,40 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int)
 	//   - List reaches capacity
 	for {
 		select {
-		case nodeLen := <-nodes.len:
+		case nodeLen := <-nodes.length:
+			log.Debug().Msg("Batch-size update")
 			if nodeLen >= batchSize {
 				nodes.Lock()
-				doTokenPush(nodes.slice)
+				doTokenPush(&nodes.slice)
 				nodes.Unlock()
+			} else {
+				log.Trace().Msgf("Only %d nodes; skipping launch", nodeLen)
 			}
 		case <-timer.C:
+			log.Debug().Msg("Timer launch")
 			nodes.Lock()
 			if len(nodes.slice) > 0 {
-				doTokenPush(nodes.slice)
+				doTokenPush(&nodes.slice)
+			} else {
+				log.Trace().Msg("No nodes; skipping launch")
 			}
 			nodes.Unlock()
 		}
 	}
 }
 
-func doTokenPush(hostnames []string) {
+func doTokenPush(hostnames *[]string) {
+	// NOTE: The hostnames slice should be locked by external logic
+
 	// TODO: Fetch a token from opaal and add it to the environment somehow
+	log.Trace().Msgf("Launching token push to %v", *hostnames)
 
 	// Compose our Ansible launch command, in exec form
 	// A trailing comma is necessary for a single node, and fine for multiple nodes
 	launchCmd := append([]string{"ansible-playbook", "main.yaml"}, "-i", strings.Join(hostnames, ",")+",")
 	// TODO: How do exec?
+
+	// The hostnames slice should be locked from outside this function, so we
+	// can safely mutate it (in this case, clear it for later re-use)
+	*hostnames = nil
 }
