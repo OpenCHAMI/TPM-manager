@@ -92,6 +92,7 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int)
 		case nodeLen := <-nodes.length:
 			log.Info().Msg("Caught a buffer update!")
 			if nodeLen >= batchSize {
+				timer.Reset(interval)
 				doTokenPush(nodes)
 			} else {
 				log.Debug().Msgf("Buffer now contains %d nodes; not launching yet", nodeLen)
