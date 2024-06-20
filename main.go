@@ -20,10 +20,12 @@ type SafeUpdatingSlice struct {
 }
 
 func main() {
-	port := 27730
-	batchSize := 100
 	nodes := SafeUpdatingSlice{length: make(chan int)}
 
+	// Configure and parse arguments
+	port := flag.Int("port", 27730, "port on which to listen for POSTs")
+	interval := flag.Duration("interval", 5*time.Minute, "how frequently to push tokens, regardless of buffer length")
+	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
 	trace := flag.Bool("trace", false, "sets log level to trace")
 	flag.Parse()
 	if *trace {
@@ -36,8 +38,8 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	go listenPosts(&nodes, port)
-	go watchNodes(&nodes, 5*time.Minute, batchSize)
+	go listenPosts(&nodes, *port)
+	go watchNodes(&nodes, *interval, *batchSize)
 
 	// Exit cleanly when an OS signal is received
 	sigs := make(chan os.Signal, 1)
