@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"os/signal"
 	"strings"
@@ -23,11 +24,18 @@ func main() {
 	batchSize := 100
 	nodes := SafeUpdatingSlice{length: make(chan int)}
 
+	trace := flag.Bool("trace", false, "sets log level to trace")
+	flag.Parse()
+	if *trace {
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
 	// Initialize logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	log.Info().Msgf("Awaiting POST requests on port %d...", port)
 	go listenPosts(&nodes, port)
 	go watchNodes(&nodes, 5*time.Minute, batchSize)
 
@@ -38,6 +46,8 @@ func main() {
 }
 
 func listenPosts(nodes *SafeUpdatingSlice, port int) {
+	log.Info().Msgf("Awaiting POST requests on port %d...", port)
+
 	// FIXME: This is for testing only, until I figure out the Chi router
 	time.Sleep(5 * time.Second)
 
@@ -48,8 +58,8 @@ func listenPosts(nodes *SafeUpdatingSlice, port int) {
 	nodes.slice = append(nodes.slice, exampleNodes...)
 	numNodes := len(nodes.slice)
 	nodes.Unlock()
+	log.Debug().Msgf("Pushing update: %d nodes", numNodes)
 	nodes.length <- numNodes
-	log.Debug().Msgf("Pushed update: %d nodes", numNodes)
 }
 
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int) {
@@ -90,10 +100,10 @@ func doTokenPush(hostnames *[]string) {
 
 	// Compose our Ansible launch command, in exec form
 	// A trailing comma is necessary for a single node, and fine for multiple nodes
-	launchCmd := append([]string{"ansible-playbook", "main.yaml"}, "-i", strings.Join(hostnames, ",")+",")
-	// TODO: How do exec?
-
-	// The hostnames slice should be locked from outside this function, so we
-	// can safely mutate it (in this case, clear it for later re-use)
+	launchCmd := append([]string{"ansible-playbook", "main.yaml"}, "-i", strings.Join(*hostnames, ",")+",")
+	// Clear node list, since we've launched the token push
 	*hostnames = nil
+
+	// TODO: How do exec?
+	log.Trace().Msg("Would run: " + strings.Join(launchCmd, " "))
 }
