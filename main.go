@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -21,6 +24,11 @@ func main() {
 	fmt.Printf("Awaiting POST requests on port %d...\n", port)
 	go listenPosts(&nodes, port)
 	go watchNodes(&nodes, 5*time.Minute, batchSize)
+
+	// Exit cleanly when an OS signal is received
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	fmt.Printf("\nCaught OS signal %v, exiting...\n", <-sigs)
 }
 
 func listenPosts(nodes *SafeUpdatingSlice, port int) {
