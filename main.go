@@ -28,10 +28,10 @@ func main() {
 	port := flag.Int("port", 27730, "port on which to listen for POSTs")
 	interval := flag.Duration("interval", 5*time.Minute, "how frequently to push tokens, regardless of buffer length")
 	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
-	trace := flag.Bool("trace", false, "sets log level to trace")
+	debug := flag.Bool("debug", false, "sets log level to debug")
 	flag.Parse()
-	if *trace {
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	if *debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
@@ -68,7 +68,7 @@ func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdating
 			nodes.slice = append(nodes.slice, string(body))
 			numNodes := len(nodes.slice)
 			nodes.Unlock()
-			log.Debug().Msgf("Slice updated: %d nodes", numNodes)
+			log.Debug().Msgf("Buffer updated: %d nodes", numNodes)
 			nodes.length <- numNodes
 			fmt.Fprintf(w, "Acknowledged")
 		} else {
@@ -84,32 +84,31 @@ func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdating
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int) {
 	timer := time.NewTicker(interval)
 
-	// Launch token push to current list of nodes, when either:
+	// Launch token push to current set of nodes, when either:
+	//   - Slice has reached batch size
 	//   - Interval has expired
-	//   - List reaches capacity
 	for {
 		select {
 		case nodeLen := <-nodes.length:
-			log.Debug().Msg("Batch-size update")
+			log.Info().Msg("Caught a buffer update!")
 			if nodeLen >= batchSize {
 				doTokenPush(nodes)
 			} else {
-				log.Trace().Msgf("Only %d nodes; skipping launch", nodeLen)
+				log.Debug().Msgf("Buffer now contains %d nodes; not launching yet", nodeLen)
 			}
 		case <-timer.C:
-			log.Debug().Msg("Timer launch")
+			log.Info().Msg("Caught a timer tick!")
 			if len(nodes.slice) > 0 {
 				doTokenPush(nodes)
 			} else {
-				log.Trace().Msg("No nodes; skipping launch")
+				log.Debug().Msg("No nodes in buffer; skipping launch")
 			}
 		}
 	}
 }
 
 func doTokenPush(nodes *SafeUpdatingSlice) {
-	// TODO: Fetch a token from opaal and add it to the environment somehow
-	log.Trace().Msgf("Launching token push to %v", nodes.slice)
+	log.Info().Msgf("Launching token push to %v", nodes.slice)
 
 	nodes.Lock()
 	// Compose our Ansible launch command, in exec form
@@ -120,5 +119,5 @@ func doTokenPush(nodes *SafeUpdatingSlice) {
 	nodes.Unlock()
 
 	// TODO: How do exec?
-	log.Trace().Msg("Would run: " + strings.Join(launchCmd, " "))
+	log.Debug().Msg("Would run: " + strings.Join(launchCmd, " "))
 }
