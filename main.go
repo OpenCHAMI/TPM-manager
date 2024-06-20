@@ -75,36 +75,32 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int)
 		case nodeLen := <-nodes.length:
 			log.Debug().Msg("Batch-size update")
 			if nodeLen >= batchSize {
-				nodes.Lock()
-				doTokenPush(&nodes.slice)
-				nodes.Unlock()
+				doTokenPush(nodes)
 			} else {
 				log.Trace().Msgf("Only %d nodes; skipping launch", nodeLen)
 			}
 		case <-timer.C:
 			log.Debug().Msg("Timer launch")
-			nodes.Lock()
 			if len(nodes.slice) > 0 {
-				doTokenPush(&nodes.slice)
+				doTokenPush(nodes)
 			} else {
 				log.Trace().Msg("No nodes; skipping launch")
 			}
-			nodes.Unlock()
 		}
 	}
 }
 
-func doTokenPush(hostnames *[]string) {
-	// NOTE: The hostnames slice should be locked by external logic
-
+func doTokenPush(nodes *SafeUpdatingSlice) {
 	// TODO: Fetch a token from opaal and add it to the environment somehow
-	log.Trace().Msgf("Launching token push to %v", *hostnames)
+	log.Trace().Msgf("Launching token push to %v", nodes.slice)
 
+	nodes.Lock()
 	// Compose our Ansible launch command, in exec form
 	// A trailing comma is necessary for a single node, and fine for multiple nodes
-	launchCmd := append([]string{"ansible-playbook", "main.yaml"}, "-i", strings.Join(*hostnames, ",")+",")
+	launchCmd := append([]string{"ansible-playbook", "main.yaml"}, "-i", strings.Join(nodes.slice, ",")+",")
 	// Clear node list, since we've launched the token push
-	*hostnames = nil
+	nodes.slice = nil
+	nodes.Unlock()
 
 	// TODO: How do exec?
 	log.Trace().Msg("Would run: " + strings.Join(launchCmd, " "))
