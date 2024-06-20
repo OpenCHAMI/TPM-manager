@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/diode"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,15 +31,19 @@ func main() {
 	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
 	debug := flag.Bool("debug", false, "sets log level to debug")
 	flag.Parse()
+
+	// Initialize logging
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	dwr := diode.NewWriter(os.Stderr, 1000, 10*time.Millisecond,
+		func(missed int) { fmt.Printf("Logger dropped %d messages", missed) })
+	log.Logger = log.Output(zerolog.ConsoleWriter{
+		Out:        dwr,
+		TimeFormat: time.RFC3339})
 	if *debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-
-	// Initialize logging
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	// Configure HTTP endpoints
 	http.HandleFunc("/Node", func(w http.ResponseWriter, r *http.Request) {
