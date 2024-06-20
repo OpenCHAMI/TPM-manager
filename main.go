@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -38,7 +40,14 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
-	go listenPosts(&nodes, *port)
+	// Configure HTTP endpoints
+	http.HandleFunc("/Node", func(w http.ResponseWriter, r *http.Request) {
+		respondNodePost(w, r, &nodes)
+	})
+
+	// Launch the HTTP and node-slice watchers
+	log.Info().Msgf("Awaiting POST requests on port %d...", *port)
+	go http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
 	go watchNodes(&nodes, *interval, *batchSize)
 
 	// Exit cleanly when an OS signal is received
@@ -47,29 +56,29 @@ func main() {
 	log.Info().Msgf("Caught OS signal %v, exiting...", <-sigs)
 }
 
-func listenPosts(nodes *SafeUpdatingSlice, port int) {
-	log.Info().Msgf("Awaiting POST requests on port %d...", port)
-
-	// FIXME: This is for testing only, until I figure out the Chi router
-	time.Sleep(5 * time.Second)
-
-	// Add our node to the slice, and send a length update to anyone watching
-	nodes.Lock()
-	// FIXME: For now, we use a list of multiple nodes, so that we can test with more than just one Ansible target
-	nodes.slice = append(nodes.slice, []string{"nid001", "nid002"}...)
-	numNodes := len(nodes.slice)
-	nodes.Unlock()
-	log.Debug().Msgf("Pushing update: %d nodes", numNodes)
-	nodes.length <- numNodes
-
-	// FIXME: Add some more nodes, as a test
-	time.Sleep(5 * time.Second)
-	nodes.Lock()
-	nodes.slice = append(nodes.slice, []string{"nid003", "nid004", "nid005", "nid006", "nid007"}...)
-	numNodes = len(nodes.slice)
-	nodes.Unlock()
-	log.Debug().Msgf("Pushing update: %d nodes", numNodes)
-	nodes.length <- numNodes
+func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdatingSlice) {
+	if r.Method == http.MethodPost {
+		// TODO: Add actual validation logic here, once we know our data format
+		// Read (up to 100 chars of) the request body
+		body := make([]byte, 100)
+		length, _ := r.Body.Read(body)
+		if length != 0 {
+			// Add our node to the slice, and send a length update to anyone watching
+			nodes.Lock()
+			nodes.slice = append(nodes.slice, string(body))
+			numNodes := len(nodes.slice)
+			nodes.Unlock()
+			log.Debug().Msgf("Slice updated: %d nodes", numNodes)
+			nodes.length <- numNodes
+			fmt.Fprintf(w, "Acknowledged")
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "A real error message will go here, once we know our data format")
+		}
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(w, "This endpoint must be POSTed to")
+	}
 }
 
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int) {
