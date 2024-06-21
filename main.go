@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -46,7 +48,8 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	// Configure HTTP endpoints
+	// Configure HTTP server
+	server := &http.Server{Addr: fmt.Sprintf(":%d", *port)}
 	http.HandleFunc("/Node", func(w http.ResponseWriter, r *http.Request) {
 		respondNodePost(w, r, &nodes)
 	})
@@ -54,10 +57,17 @@ func main() {
 	// Create a waitgroup for Ansible child processes
 	var wg sync.WaitGroup
 
-	// Launch the HTTP and node-slice watchers
-	log.Info().Msgf("Awaiting POST requests on port %d...", *port)
-	go http.ListenAndServe(fmt.Sprintf(":%d", *port), nil)
+	// Launch the node-slice watcher and HTTP server
 	go watchNodes(&nodes, *interval, *batchSize, playbook, &wg)
+	go func() {
+		log.Info().Msgf("Awaiting HTTP POST requests on %s...", server.Addr)
+		err := server.ListenAndServe()
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal().Msgf("HTTP server error: %v", err)
+			os.Exit(1)
+		}
+		log.Debug().Msg("HTTP server shutdown complete")
+	}()
 
 	// Exit cleanly when an OS interrupt signal is received
 	sigs := make(chan os.Signal, 1)
@@ -65,7 +75,15 @@ func main() {
 	log.Info().Msg("Interrupt (^C) to exit")
 
 	log.Info().Msgf("Caught OS signal %v, exiting once all Ansible runs finish...", <-sigs)
-	// TODO: Shut down HTTP server
+	// Shut down HTTP server
+	ctx, release := context.WithTimeout(context.Background(), 10*time.Second)
+	defer release()
+	err := server.Shutdown(ctx)
+	if err != nil {
+		log.Error().Msgf("HTTP server shutdown error: %v", err)
+		log.Info().Msg("Forcibly closing HTTP server")
+		server.Close()
+	}
 	// Process any nodes left in the buffer
 	nodes.Lock()
 	nodeLen := len(nodes.slice)
