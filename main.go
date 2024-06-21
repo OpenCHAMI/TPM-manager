@@ -111,7 +111,10 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int,
 			}
 		case <-timer.C:
 			log.Debug().Msg("Caught a timer tick!")
-			if len(nodes.slice) > 0 {
+			nodes.Lock()
+			nodeLen := len(nodes.slice)
+			nodes.Unlock()
+			if nodeLen > 0 {
 				runAnsiblePlaybook(playbook, nodes, wg)
 			} else {
 				log.Debug().Msg("No nodes in buffer; skipping launch")
