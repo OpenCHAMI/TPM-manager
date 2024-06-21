@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -69,15 +70,15 @@ func main() {
 }
 
 func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdatingSlice) {
+	// TODO: Log errors from this?
 	if r.Method == http.MethodPost {
 		// TODO: Add actual validation logic here, once we know our data format
 		// Read (up to 100 chars of) the request body
-		body := make([]byte, 100)
-		length, _ := r.Body.Read(body)
-		if length != 0 {
+		nodeName, err := io.ReadAll(r.Body)
+		if err == nil && len(nodeName) > 0 {
 			// Add our node to the slice, and send a length update to anyone watching
 			nodes.Lock()
-			nodes.slice = append(nodes.slice, string(body))
+			nodes.slice = append(nodes.slice, string(nodeName))
 			numNodes := len(nodes.slice)
 			nodes.Unlock()
 			log.Debug().Msgf("Buffer updated: %d nodes", numNodes)
@@ -85,7 +86,7 @@ func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdating
 			fmt.Fprintf(w, "Acknowledged")
 		} else {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "A real error message will go here, once we know our data format")
+			fmt.Fprintf(w, "Error reading request body")
 		}
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
