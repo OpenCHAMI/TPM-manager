@@ -28,7 +28,7 @@ func main() {
 
 	// Configure and parse arguments
 	port := flag.Int("port", 27730, "port on which to listen for POSTs")
-	interval := flag.Duration("interval", 5*time.Minute, "how frequently to push tokens, regardless of buffer length")
+	interval := flag.Duration("interval", 5*time.Minute, "how frequently to run Ansible, regardless of buffer length")
 	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
 	playbook := flag.String("playbook", "main.yaml", "Ansible playbook to run against nodes")
 	debug := flag.Bool("debug", false, "sets log level to debug")
@@ -107,7 +107,7 @@ func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdating
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int, playbook *string, wg *sync.WaitGroup) {
 	timer := time.NewTicker(interval)
 
-	// Launch token push to current set of nodes, when either:
+	// Launch Ansible against current set of nodes, when either:
 	//   - Slice has reached batch size
 	//   - Interval has expired
 	for {
@@ -135,13 +135,13 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int,
 }
 
 func runAnsiblePlaybook(playbook *string, nodes *SafeUpdatingSlice, wg *sync.WaitGroup) {
-	log.Info().Msgf("Launching token push to %v", nodes.slice)
+	log.Info().Msgf("Launching Ansible against %v", nodes.slice)
 
 	nodes.Lock()
 	// Compose our Ansible launch command, in exec form
 	// A trailing comma is necessary for a single node, and fine for multiple nodes
 	ansibleArgs := []string{*playbook, "--inventory", strings.Join(nodes.slice, ",") + ","}
-	// Clear node list, since we've launched the token push
+	// Clear node list, since we've launched Ansible
 	nodes.slice = nil
 	nodes.Unlock()
 
