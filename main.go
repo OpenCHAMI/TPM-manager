@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/diode"
 	"github.com/rs/zerolog/log"
 )
 
@@ -37,10 +36,8 @@ func main() {
 	// Initialize logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	// Write our logs to stderr, leaving stdout for Ansible messages
-	dwr := diode.NewWriter(os.Stderr, 1000, 10*time.Millisecond,
-		func(missed int) { fmt.Printf("Logger dropped %d messages", missed) })
 	log.Logger = log.Output(zerolog.ConsoleWriter{
-		Out:        dwr,
+		Out:        os.Stderr,
 		TimeFormat: time.RFC3339})
 	if *debug {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
