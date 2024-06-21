@@ -63,8 +63,18 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT)
 	log.Info().Msg("Interrupt (^C) to exit")
+
 	log.Info().Msgf("Caught OS signal %v, exiting once all Ansible runs finish...", <-sigs)
 	// TODO: Shut down HTTP server
+	// Process any nodes left in the buffer
+	nodes.Lock()
+	nodeLen := len(nodes.slice)
+	nodes.Unlock()
+	if nodeLen > 0 {
+		log.Info().Msgf("%d nodes remain in buffer!", nodeLen)
+		runAnsiblePlaybook(playbook, &nodes, &wg)
+	}
+	// Ensure all Ansible runs have finished
 	wg.Wait()
 	log.Info().Msg("Exited cleanly")
 }
