@@ -119,7 +119,7 @@ func runAnsiblePlaybook(playbook *string, nodes *SafeUpdatingSlice) {
 	nodes.Lock()
 	// Compose our Ansible launch command, in exec form
 	// A trailing comma is necessary for a single node, and fine for multiple nodes
-	ansibleArgs := []string{*playbook, "--inventory", strings.Join(nodes.slice, ",")+","}
+	ansibleArgs := []string{*playbook, "--inventory", strings.Join(nodes.slice, ",") + ","}
 	// Clear node list, since we've launched the token push
 	nodes.slice = nil
 	nodes.Unlock()
@@ -130,5 +130,7 @@ func runAnsiblePlaybook(playbook *string, nodes *SafeUpdatingSlice) {
 	// Print all Ansible messages to stdout, since we use stderr for our own logging
 	ansible.Stdout = os.Stdout
 	ansible.Stderr = os.Stdout
-	ansible.Run()
+	if err := ansible.Run(); err != nil {
+		log.Error().Err(err).Msg("Failed to launch Ansible!")
+	}
 }
