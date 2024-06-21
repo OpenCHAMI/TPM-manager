@@ -95,7 +95,7 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int,
 	for {
 		select {
 		case nodeLen := <-nodes.length:
-			log.Info().Msg("Caught a buffer update!")
+			log.Debug().Msg("Caught a buffer update!")
 			if nodeLen >= batchSize {
 				timer.Reset(interval)
 				runAnsiblePlaybook(playbook, nodes)
@@ -103,7 +103,7 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int,
 				log.Debug().Msgf("Buffer now contains %d nodes; not launching yet", nodeLen)
 			}
 		case <-timer.C:
-			log.Info().Msg("Caught a timer tick!")
+			log.Debug().Msg("Caught a timer tick!")
 			if len(nodes.slice) > 0 {
 				runAnsiblePlaybook(playbook, nodes)
 			} else {
