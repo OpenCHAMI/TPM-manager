@@ -36,6 +36,7 @@ func main() {
 
 	// Initialize logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	// Write our logs to stderr, leaving stdout for Ansible messages
 	dwr := diode.NewWriter(os.Stderr, 1000, 10*time.Millisecond,
 		func(missed int) { fmt.Printf("Logger dropped %d messages", missed) })
 	log.Logger = log.Output(zerolog.ConsoleWriter{
@@ -129,5 +130,8 @@ func runAnsiblePlaybook(playbook *string, nodes *SafeUpdatingSlice) {
 	// Launch Ansible
 	log.Debug().Msgf("Launching Ansible with %v", ansibleArgs)
 	ansible := exec.Command("ansible-playbook", ansibleArgs...)
+	// Print all Ansible messages to stdout, since we use stderr for our own logging
+	ansible.Stdout = os.Stdout
+	ansible.Stderr = os.Stdout
 	ansible.Run()
 }
