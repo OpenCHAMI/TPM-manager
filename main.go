@@ -29,7 +29,7 @@ func main() {
 	nodes := SafeUpdatingSlice{length: make(chan int)}
 
 	// Configure and parse arguments
-	port := flag.Int("port", 27730, "port on which to listen for POSTs")
+	port := flag.Int("port", 27780, "port on which to listen for POSTs")
 	interval := flag.Duration("interval", 5*time.Minute, "how frequently to run Ansible, regardless of buffer length")
 	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
 	playbook := flag.String("playbook", "main.yaml", "Ansible playbook to run against nodes")

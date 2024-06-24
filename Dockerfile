@@ -13,7 +13,7 @@ LABEL org.opencontainers.image.authors="Lucas Ritzdorf <lritzdorf@lanl.gov>"
 
 # Define API base URLs
 ## TPM-manager webserver's port for POST requests
-ARG TPM_PORT=27730
+ARG TPM_PORT=27780
 ENV TPM_PORT=$TPM_PORT
 ## OPAAL server for auth token provisioning
 ENV OPAAL_URL=http://opaal:3333
