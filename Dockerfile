@@ -1,9 +1,20 @@
 # syntax=docker/dockerfile:1.4
 
+# Compile our webserver and Ansible launcher
+FROM rockylinux:8.9 AS builder
+RUN dnf install -y go
+COPY *.go go.* .
+RUN go build .
+
+
+# Build the actual image
 FROM rockylinux:8.9
 LABEL org.opencontainers.image.authors="Lucas Ritzdorf <lritzdorf@lanl.gov>"
 
 # Define API base URLs
+## TPM-manager webserver's port for POST requests
+ARG TPM_PORT=27730
+ENV TPM_PORT=$TPM_PORT
 ## OPAAL server for auth token provisioning
 ENV OPAAL_URL=http://opaal:3333
 ## SMD server for node inventory retrieval
@@ -23,8 +34,11 @@ COPY ansible-smd-inventory/smd_inventory.py /usr/share/ansible/plugins/inventory
 COPY ansible/ ansible/
 WORKDIR ansible
 
-# Copy our helper script, which gets a token for smd and exec's Ansible
-COPY ansible_shim.sh .
+# Copy our webserver/launcher
+COPY --from=builder TPM-manager .
 
-# TODO: This should eventually be some sort of daemon process
-CMD ./ansible_shim.sh
+# Expose webserver's port for POST requests
+EXPOSE $TPM_PORT
+
+# Run the webserver/launcher
+CMD ./TPM-manager -batch-size 100 -interval 5m -playbook main.yaml -port $TPM_PORT
