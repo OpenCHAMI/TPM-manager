@@ -126,11 +126,16 @@ func respondNodePost(w http.ResponseWriter, r *http.Request, nodes *SafeUpdating
 }
 
 func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int, playbook *string, wg *sync.WaitGroup) {
+	// Register a SIGHUP handler
+	sighup := make(chan os.Signal, 1)
+	signal.Notify(sighup, syscall.SIGHUP)
+	// And a timer
 	timer := time.NewTicker(interval)
 
 	// Launch Ansible against current set of nodes, when either:
 	//   - Slice has reached batch size
 	//   - Interval has expired
+	//   - SIGHUP is received
 	for {
 		select {
 		case nodeLen := <-nodes.length:
@@ -143,6 +148,17 @@ func watchNodes(nodes *SafeUpdatingSlice, interval time.Duration, batchSize int,
 			}
 		case <-timer.C:
 			log.Debug().Msg("Caught a timer tick!")
+			nodes.Lock()
+			nodeLen := len(nodes.slice)
+			nodes.Unlock()
+			if nodeLen > 0 {
+				runAnsiblePlaybook(playbook, nodes, wg)
+			} else {
+				log.Debug().Msg("No nodes in buffer; skipping launch")
+			}
+		case <-sighup:
+			timer.Reset(interval)
+			log.Debug().Msg("Caught a SIGHUP!")
 			nodes.Lock()
 			nodeLen := len(nodes.slice)
 			nodes.Unlock()
