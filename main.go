@@ -92,7 +92,10 @@ func main() {
 		log.Info().Msgf("%d nodes remain in buffer!", nodeLen)
 		runAnsiblePlaybook(playbook, &nodes, &wg)
 	}
-	// Ensure all Ansible runs have finished
+
+	// Stop handling OS signals, allowing for an unclean exit if interrupted again
+	signal.Stop(sigs)
+	// Ensure all Ansible runs have finished (we might be interrupted by an OS signal instead)
 	wg.Wait()
 	log.Info().Msg("Exited cleanly")
 }
