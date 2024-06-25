@@ -12,9 +12,6 @@ FROM rockylinux:8.9
 LABEL org.opencontainers.image.authors="Lucas Ritzdorf <lritzdorf@lanl.gov>"
 
 # Define API base URLs
-## TPM-manager webserver's port for POST requests
-ARG TPM_PORT=27780
-ENV TPM_PORT=$TPM_PORT
 ## OPAAL server for auth token provisioning
 ENV OPAAL_URL=http://opaal:3333
 ## SMD server for node inventory retrieval
@@ -37,8 +34,7 @@ WORKDIR ansible
 # Copy our webserver/launcher
 COPY --from=builder TPM-manager .
 
-# Expose webserver's port for POST requests
-EXPOSE $TPM_PORT
-
 # Run the webserver/launcher
-CMD ./TPM-manager -batch-size 100 -interval 5m -playbook main.yaml -port $TPM_PORT
+ENTRYPOINT ["./TPM-manager"]
+# These are the defaults in our binary, but we'll specify them here anyway
+CMD ["-playbook", "main.yaml", "-port", "27780"]
