@@ -30,7 +30,7 @@ func main() {
 
 	// Configure and parse arguments
 	port := flag.Int("port", 27780, "port on which to listen for POSTs")
-	interval := flag.Duration("interval", 5*time.Minute, "how frequently to run Ansible, regardless of buffer length")
+	interval := flag.Duration("interval", 30*time.Second, "how frequently to run Ansible, regardless of buffer length")
 	batchSize := flag.Int("batch-size", 100, "how full the node buffer must be to trigger a non-timed push")
 	playbook := flag.String("playbook", "main.yaml", "Ansible playbook to run against nodes")
 	debug := flag.Bool("debug", false, "sets log level to debug")
@@ -199,6 +199,6 @@ func ansibleHost(args *[]string, wg *sync.WaitGroup) {
 	ansible.Stdout = os.Stdout
 	ansible.Stderr = os.Stdout
 	if err := ansible.Run(); err != nil {
-		log.Error().Err(err).Msg("Failed to launch Ansible!")
+		log.Error().Err(err).Msg("An Ansible error occurred!")
 	}
 }
