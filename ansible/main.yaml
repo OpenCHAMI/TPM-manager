@@ -1,6 +1,7 @@
 ---
 - name: get jwt for cloud-init
   hosts: localhost
+  gather_facts: false
   tasks:
     - name: get jwt from opaal
       ansible.builtin.uri:
@@ -16,6 +17,7 @@
 
 - name: securely push cloud-init jwt to nodes
   hosts: all
+  gather_facts: false
   roles:
     - role: tpm_secrets
       vars:
