@@ -12,6 +12,8 @@ FROM rockylinux:8.9
 LABEL org.opencontainers.image.authors="Lucas Ritzdorf <lritzdorf@lanl.gov>"
 
 # Define API base URLs
+## Ansible connection timeout; this will vary by system
+ENV ANSIBLE_TIMEOUT=300
 ## OPAAL server for auth token provisioning
 ENV OPAAL_URL=http://opaal:3333
 ## SMD server for node inventory retrieval
