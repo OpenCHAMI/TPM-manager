@@ -18,6 +18,13 @@
 - name: securely push cloud-init jwt to nodes
   hosts: all
   gather_facts: false
+  pre_tasks:
+    - name: wait for node ssh setup
+      ansible.builtin.wait_for_connection:
+        connect_timeout: 300
+        delay: 30
+        sleep: 5
+        timeout: 300
   roles:
     - role: tpm_secrets
       vars:
