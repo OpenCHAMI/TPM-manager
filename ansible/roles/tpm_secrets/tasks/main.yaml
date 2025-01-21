@@ -6,13 +6,13 @@
 
 
  - name: check for context
-   ansible.builtin.shell: tpm2_nvread -C o -s 32 1
+   ansible.builtin.shell: tpm2_nvread -C o -s 2048 1
    when: tpm_path.stat.exists
    ignore_errors: true
    register: tpm_context
 
  - name: create tpm context
-   ansible.builtin.shell: tpm2_nvdefine 1 -C o -s 32 -a "ownerread|ownerwrite"
+   ansible.builtin.shell: tpm2_nvdefine 1 -C o -s 2048 -a "ownerread|ownerwrite"
    when: 
      - tpm_path.stat.exists
      - tpm_context.rc != 0
